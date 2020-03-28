@@ -49,3 +49,7 @@ git push -u origin master
 
 Luego habilite las páginas de GitHub en:
 Source to master branch /docs folder in the GitHub Pages section of the repository settings.
+
+
+INGRESE A :
+https://sandrarairan.github.io/flexdashboard-example/
