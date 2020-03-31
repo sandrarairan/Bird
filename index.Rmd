@@ -1,36 +1,229 @@
 ---
-title: "flexdashboard-example"
+title: "Ejemplo flexdashboard - Pajareadas  en Caldas y Quindio"
+author: "Sandra Rairán"
 output: 
   flexdashboard::flex_dashboard:
     orientation: columns
+    social: menu
+    source_code: embed
     vertical_layout: fill
 ---
 
 ```{r setup, include=FALSE}
 library(flexdashboard)
+library(dplyr)
+library(tidyr)
+
+#------------------ Parameters ------------------
+# Set colors
+# https://www.w3.org/TR/css-color-3/#svg-color
+count_color <- "mediumvioletred"
+active_color <- "orange"
+recovered_color <- "forestgreen"
+Durationmin_color <- "teal"
+
+MyEBirdData<- read.csv("/Users/sandrarairan/Documents/Platzi/Fundamentos-R/MyEBirdData.csv")
+#data(MyEBirdData)
+#str(MyEBirdData1)
+
+#------------------ Data ------------------
+
+#df1 <- MyEBirdData1 %>% dplyr::filter(Date == max(Date))
+
+df_count <- MyEBirdData %>%  
+  dplyr::group_by(Date) %>%
+  dplyr::mutate(count_cum = cumsum(Count))
+                
+
 ```
 
-Column {data-width=650}
+
+Summary
+=======================================================================
+
+
+Row {data-width=450}
 -----------------------------------------------------------------------
 
-### Chart A
+### Count {.value-box}
 
 ```{r}
 
+
+
+valueBox(
+  value = paste(format(sum(MyEBirdData$Count), big.mark = ","), "", sep = " "),
+  caption = "Total de Aves Observadas",
+  icon = "far fa-smile",
+  color = count_color
+)
+
+
 ```
 
-Column {data-width=350}
+
+
+
+### Duration..Min. {.value-box}
+```{r}
+
+valueBox(
+  value = paste(format(sum(MyEBirdData$Duration..Min.), big.mark = ","), "", sep = " "),
+  caption = "Total Minutos Pajareando",
+  icon = "far fa-smile",
+  color = Durationmin_color
+)
+
+```
+
+Row {data-height=600}
+------------------------------------------------------------------------------
+### Aves observadas segun el Duration..Min.
+    
+```{r}
+library(tidyverse)
+#Color al histograma
+ggplot()+geom_histogram(data=MyEBirdData,
+                        aes(x=Duration..Min.),fill="yellow",color="blue",
+                        binwidth = 20)+
+  labs(x="Tiempo observacion aves-minutos", y="Cantidad de Aves",
+       title = "aves observadas segun el tiempo en minutos")+
+  xlim(c(0,360))+
+  theme(legend.position = "none")+
+  theme(panel.background = element_blank(),panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+ 
+
+  
+
+```
+
+
+
+### Aves observadas segun el tiempo en minutos
+
+```{r}
+
+
+
+
+  plotly::plot_ly(data = MyEBirdData) %>%
+  plotly::add_trace(x = ~ MyEBirdData$Duration..Min,
+                    y = ~ MyEBirdData$Count,
+                    type = "bar", 
+                name = "Active",
+                marker = list(color = active_color)) %>%
+  plotly::layout(barmode = 'stack',
+                 yaxis = list(title = "Cantidad de Aves",
+                              type = "log"),
+                 xaxis = list(title = "Duracion observacion en Minutos"),
+                 hovermode = "compare",
+                  margin =  list(
+                   # l = 60,
+                   # r = 40,
+                   b = 10,
+                   t = 10,
+                   pad = 2
+                 ))
+
+
+```
+
+Map
+=======================================================================
+
+**Map**
+
+```{r}
+     
+by_location_coordenadas <- MyEBirdData %>%  group_by(MyEBirdData$Location,MyEBirdData$Longitude, MyEBirdData$Latitude)
+by_location <- by_location_coordenadas %>% summarise(n = n())
+#by_location
+
+by_location %>% summarise(n = sum(n))
+
+by_location %>%
+  ungroup() %>%
+  summarise(n = sum(n))
+     
+      library(leaflet)
+    # carga del plano base
+      leaflet()  %>%  addTiles() %>%
+      addProviderTiles(providers$Stamen.Toner) %>%
+      addCircleMarkers(radius = 7,fillOpacity = 0.8,
+      opacity = 0.6,
+      lng=MyEBirdData$Longitude,lat=MyEBirdData$Latitude, 
+      popup = paste(MyEBirdData$Location,
+      by_location$n,
+      sep = " ")) 
+                         
+```
+
+Graficas
+=======================================================================
+
+Row {data-height=600}
 -----------------------------------------------------------------------
 
-### Chart B
+### Las aves mas observadas en Caldas y Quindio
 
 ```{r}
+# Package
+library(treemap)
+
+# Plot
+treemap(MyEBirdData,
+            
+            # data
+            index="Scientific.Name",
+            vSize="Count",
+            type="index",
+            
+            
+            # Main
+            title="",
+            palette="Dark2",
+
+            # Borders:
+            border.col=c("black"),             
+            border.lwds=1,                         
+        
+            # Labels
+            fontsize.labels=0.5,
+            fontcolor.labels="white",
+            fontface.labels=1,            
+            bg.labels=c("transparent"),              
+            align.labels=c("left", "top"),                                  
+            overlap.labels=0.5,
+            inflate.labels=T                        # If true, labels are bigger when rectangle is bigger.
+
+            
+            )
 
 ```
 
-### Chart C
 
+### EDA con dataset proyecto - box plot- ggplot2 - dplyr
+-----------------------------------------------------------------------
 ```{r}
+
+Promedioaves <- mean(MyEBirdData$Count)
+Promedioaves
+MyEBirdData<- MyEBirdData %>%
+  mutate(Grande_Candidad_Aves = ifelse(Count < Promedioaves,
+                                 "Por debajo del promedio aves observadas",
+                                 "Sobre-Arriba del promedio aves observadas"))
+
+
+
+ggplot(MyEBirdData, aes(x=Grande_Candidad_Aves , y=Duration..Min.,
+                     fill=Grande_Candidad_Aves ))+
+geom_boxplot(alpha=0.4)+
+  labs(x="Grande_Candidad_Aves", y="Duration..Min.",
+       title="Duration..Min.")+
+  theme(legend.position = "none")+
+  theme(panel.background = element_blank(),panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
 
 ```
 
