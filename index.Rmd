@@ -1,5 +1,5 @@
 ---
-title: "Ejemplo flexdashboard - Pajareadas  en Caldas y Quindio"
+title: "flexdashboard - Pajareadas  en Caldas y Quindio"
 author: "Sandra Rairán"
 output: 
   flexdashboard::flex_dashboard:
@@ -13,6 +13,7 @@ output:
 library(flexdashboard)
 library(dplyr)
 library(tidyr)
+library(RColorBrewer)
 
 #------------------ Parameters ------------------
 # Set colors
@@ -208,7 +209,7 @@ treemap(MyEBirdData,
 ```{r}
 
 Promedioaves <- mean(MyEBirdData$Count)
-Promedioaves
+#Promedioaves
 MyEBirdData<- MyEBirdData %>%
   mutate(Grande_Candidad_Aves = ifelse(Count < Promedioaves,
                                  "Por debajo del promedio aves observadas",
@@ -220,10 +221,31 @@ ggplot(MyEBirdData, aes(x=Grande_Candidad_Aves , y=Duration..Min.,
                      fill=Grande_Candidad_Aves ))+
 geom_boxplot(alpha=0.4)+
   labs(x="Grande_Candidad_Aves", y="Duration..Min.",
-       title="Duration..Min.")+
+       title="Cantidad de aves Observadas en un Tiempo")+
   theme(legend.position = "none")+
   theme(panel.background = element_blank(),panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
+```
+
+Top Aves MasObservadas (2019 - 2020)
+=======================================================================
+Row {data-height=600}
+------------------------------------------------------------------------------
+### Aves observadas segun el Duration en Minutos
+```{r}
+TopMasVistosB <- MyEBirdData %>%
+  filter(Scientific.Name %in% c( "Amazona mercenarius", "Pygochelidon cyanoleuca", "Pionus menstruus","Leptosittaca branickii",  "Columbina talpacoti", "Pionus menstruus"))
+
+#TopMasVistosB
+
+
+#install.packages("RColorBrewer")
+myColor <- brewer.pal(7,"OrRd")
+ggplot(TopMasVistosB, aes(x=State.Province,
+                          y=Count,fill=Count))+
+  geom_tile()+
+  facet_wrap(~Scientific.Name)+
+  scale_fill_gradientn(colors=myColor)
 ```
 
