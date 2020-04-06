@@ -141,7 +141,7 @@ by_location_coordenadas <- MyEBirdData %>%  group_by(MyEBirdData$Location,MyEBir
 by_location <- by_location_coordenadas %>% summarise(n = n())
 #by_location
 
-by_location %>% summarise(n = sum(n))
+#by_location %>% summarise(n = sum(n))
 
 by_location %>%
   ungroup() %>%
