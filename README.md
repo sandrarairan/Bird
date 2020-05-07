@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # flexdashboard-example
 Flexdashboard usa R Markdown 
 
@@ -53,3 +54,7 @@ Source to master branch /docs folder in the GitHub Pages section of the reposito
 
 INGRESE A :
 https://sandrarairan.github.io/flexdashboard-example/
+=======
+# Bird
+Birding Colombia
+>>>>>>> bca592a3fdcb16c2bac6c350a58ca0c79438e514
