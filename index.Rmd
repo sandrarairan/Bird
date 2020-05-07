@@ -3,7 +3,7 @@ title: "flexdashboard - Pajareadas  en Caldas y Quindio"
 author: "Sandra Rairán"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: columns
+    orientation: row
     social: menu
     source_code: embed
     vertical_layout: fill
@@ -23,7 +23,7 @@ active_color <- "orange"
 recovered_color <- "forestgreen"
 Durationmin_color <- "teal"
 
-MyEBirdData<- read.csv("/Users/sandrarairan/Documents/Platzi/Fundamentos-R/MyEBirdData.csv")
+MyEBirdData<- read.csv("/Users/sandrarairan/Documents/Platzi/Fundamentos-R/MyEBirdData_2020.csv")
 #data(MyEBirdData)
 #str(MyEBirdData1)
 

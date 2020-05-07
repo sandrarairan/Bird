@@ -1,1 +1,7 @@
 docs/README.html
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+data/
+output/
