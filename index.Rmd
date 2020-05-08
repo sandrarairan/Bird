@@ -1,5 +1,5 @@
 ---
-title: "flexdashboard - Pajareadas  en Caldas y Quindio"
+title: "Pajareadas en Caldas y Quindio"
 author: "Sandra Rairán"
 output: 
   flexdashboard::flex_dashboard:
@@ -14,6 +14,12 @@ library(flexdashboard)
 library(dplyr)
 library(tidyr)
 library(RColorBrewer)
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library(vroom)
+#library(broom)
+#library(hrbrthemes)
 
 #------------------ Parameters ------------------
 # Set colors
@@ -23,7 +29,7 @@ active_color <- "orange"
 recovered_color <- "forestgreen"
 Durationmin_color <- "teal"
 
-MyEBirdData<- read.csv("/Users/sandrarairan/Documents/Platzi/Fundamentos-R/MyEBirdData_2020.csv")
+MyEBirdData<- read.csv("data/MyEBirdData.csv")
 #data(MyEBirdData)
 #str(MyEBirdData1)
 
@@ -32,14 +38,37 @@ MyEBirdData<- read.csv("/Users/sandrarairan/Documents/Platzi/Fundamentos-R/MyEBi
 #df1 <- MyEBirdData1 %>% dplyr::filter(Date == max(Date))
 
 df_count <- MyEBirdData %>%  
-  dplyr::group_by(Date) %>%
-  dplyr::mutate(count_cum = cumsum(Count))
+  dplyr::group_by(Submission.ID, Date) %>%
+  dplyr::mutate(count_cum = sum(MyEBirdData$Duration..Min))
                 
+bird_cantidad <- MyEBirdData %>% group_by( MyEBirdData$Submission.ID, MyEBirdData$Date )
+birdcantidad <- bird_cantidad  %>% summarise(n = n())
 
+# Minutos obervados por id de pajareo
+bird_duracion_minuto <- MyEBirdData %>% group_by( MyEBirdData$Submission.ID, MyEBirdData$Date, MyEBirdData$Duration..Min.  )
+birdduracionminuto <- bird_duracion_minuto  %>% summarise(n = n())
+
+df <- MyEBirdData %>% 
+mutate_at(vars(Submission.ID, Location, Date, Time, Protocol), str_replace_na, "NA") %>% 
+  mutate(observation_event_id = str_c(Submission.ID, Location, Date, Time, sep = "-"),
+         observation_date = ymd(Date)) 
+
+#Cantidad por protocolo estacionario o con desplaazamiento
+df_top_protocols <- df %>% 
+  count(Protocol, sort = TRUE) %>% 
+  slice(1:2)
+
+df <- df %>% 
+  semi_join(df_top_protocols) 
+
+df %>% 
+  select(Common.Name, Date, Count) %>% 
+  glimpse()
+         
 ```
 
 
-Summary
+Resumen
 =======================================================================
 
 
@@ -53,7 +82,7 @@ Row {data-width=450}
 
 
 valueBox(
-  value = paste(format(sum(MyEBirdData$Count), big.mark = ","), "", sep = " "),
+  value = paste(format(sum(birdcantidad$n ), big.mark = ","), "", sep = " "),
   caption = "Total de Aves Observadas",
   icon = "far fa-smile",
   color = count_color
@@ -69,7 +98,7 @@ valueBox(
 ```{r}
 
 valueBox(
-  value = paste(format(sum(MyEBirdData$Duration..Min.), big.mark = ","), "", sep = " "),
+  value = paste(format(sum(birdduracionminuto$`MyEBirdData$Duration..Min.` ), big.mark = ","), "", sep = " "),
   caption = "Total Minutos Pajareando",
   icon = "far fa-smile",
   color = Durationmin_color
@@ -89,7 +118,6 @@ ggplot()+geom_histogram(data=MyEBirdData,
                         binwidth = 20)+
   labs(x="Tiempo observacion aves-minutos", y="Cantidad de Aves",
        title = "aves observadas segun el tiempo en minutos")+
-  xlim(c(0,360))+
   theme(legend.position = "none")+
   theme(panel.background = element_blank(),panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
@@ -130,33 +158,23 @@ ggplot()+geom_histogram(data=MyEBirdData,
 
 ```
 
-Map
+Graficas
 =======================================================================
 
-**Map**
 
 ```{r}
      
-by_location_coordenadas <- MyEBirdData %>%  group_by(MyEBirdData$Location,MyEBirdData$Longitude, MyEBirdData$Latitude)
-by_location <- by_location_coordenadas %>% summarise(n = n())
-#by_location
+df %>% 
+  count(observation_date) %>% 
+  ggplot(aes(x = observation_date)) +
+  geom_line(aes(y = n), colour = "maroon", group = 1) +
+  #ggplot(aes(x=Date, y=n, group = 1, xlim=c(2019)))  +
+   # geom_line() +
+    labs(x = "Fecha Observacion",
+         y = "Cantidad")+
+   theme_light()
 
-#by_location %>% summarise(n = sum(n))
 
-by_location %>%
-  ungroup() %>%
-  summarise(n = sum(n))
-     
-      library(leaflet)
-    # carga del plano base
-      leaflet()  %>%  addTiles() %>%
-      addProviderTiles(providers$Stamen.Toner) %>%
-      addCircleMarkers(radius = 7,fillOpacity = 0.8,
-      opacity = 0.6,
-      lng=MyEBirdData$Longitude,lat=MyEBirdData$Latitude, 
-      popup = paste(MyEBirdData$Location,
-      by_location$n,
-      sep = " ")) 
                          
 ```
 
@@ -166,40 +184,10 @@ Graficas
 Row {data-height=600}
 -----------------------------------------------------------------------
 
-### Las aves mas observadas en Caldas y Quindio
+### a
 
 ```{r}
-# Package
-library(treemap)
 
-# Plot
-treemap(MyEBirdData,
-            
-            # data
-            index="Scientific.Name",
-            vSize="Count",
-            type="index",
-            
-            
-            # Main
-            title="",
-            palette="Dark2",
-
-            # Borders:
-            border.col=c("black"),             
-            border.lwds=1,                         
-        
-            # Labels
-            fontsize.labels=0.5,
-            fontcolor.labels="white",
-            fontface.labels=1,            
-            bg.labels=c("transparent"),              
-            align.labels=c("left", "top"),                                  
-            overlap.labels=0.5,
-            inflate.labels=T                        # If true, labels are bigger when rectangle is bigger.
-
-            
-            )
 
 ```
 
@@ -228,24 +216,12 @@ geom_boxplot(alpha=0.4)+
 
 ```
 
-Top Aves MasObservadas (2019 - 2020)
+.
 =======================================================================
 Row {data-height=600}
 ------------------------------------------------------------------------------
-### Aves observadas segun el Duration en Minutos
+### A
 ```{r}
-TopMasVistosB <- MyEBirdData %>%
-  filter(Scientific.Name %in% c( "Amazona mercenarius", "Pygochelidon cyanoleuca", "Pionus menstruus","Leptosittaca branickii",  "Columbina talpacoti", "Pionus menstruus"))
 
-#TopMasVistosB
-
-
-#install.packages("RColorBrewer")
-myColor <- brewer.pal(7,"OrRd")
-ggplot(TopMasVistosB, aes(x=State.Province,
-                          y=Count,fill=Count))+
-  geom_tile()+
-  facet_wrap(~Scientific.Name)+
-  scale_fill_gradientn(colors=myColor)
 ```
 
