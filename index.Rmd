@@ -64,7 +64,79 @@ df <- df %>%
 df %>% 
   select(Common.Name, Date, Count) %>% 
   glimpse()
-         
+
+#Grafica
+# transformamos los meses en vector con los nombres de los meses
+meses <- df %>% 
+  mutate(observacion_mes = month(observation_date, label = TRUE)) %>% 
+  distinct(observacion_mes) %>% 
+  pull(observacion_mes)
+# Observaciones por mes de espcies
+df_observaciones <- df %>% 
+  mutate(observacion_mes = month(observation_date, label = TRUE),
+         observacion_año = year(observation_date)) %>% 
+  group_by(Common.Name, observacion_año, observacion_mes) %>% 
+  summarize(observation_count = sum(Count, na.rm = TRUE)) %>% 
+  group_by(Common.Name, observacion_mes) %>% 
+  summarize(observation_count_mean = mean(observation_count) %>% round(1)) %>% 
+  ungroup() %>% 
+  complete(Common.Name, observacion_mes = meses) %>% 
+  replace_na(list(observation_count_mean = 0)) %>% 
+  arrange(Common.Name, observacion_mes)
+  glimpse(df_observaciones)
+  
+  
+  df_observaciones <- df_observaciones %>% 
+  mutate(observation_count_mean_log10 = log10(observation_count_mean),
+         observation_count_mean_log10 = case_when(is.infinite(observation_count_mean_log10) ~ 0,
+                                                  TRUE ~ observation_count_mean_log10)) %>% 
+  select(-observation_count_mean)
+  
+  
+  #Tendencias onservacion aves por especie
+
+  veccommonname <- df_observaciones %>% 
+  pivot_wider(names_from = observacion_mes, values_from = observation_count_mean_log10, names_prefix = "month_") %>% 
+  clean_names() %>% 
+  arrange(month_jan, month_feb, month_mar, month_apr, month_may, month_jun, month_jul, month_aug, month_sep, month_oct, month_nov,   month_dec) %>% 
+  pull(1)
+  
+  
+  # k-means-(Grupos )
+   # k-means-(Grupos )
+  
+  
+  df_observaciones_aves <- df_observaciones %>% 
+  select(Common.Name, observacion_mes, observation_count_mean_log10) %>% 
+  pivot_wider(names_from = observacion_mes, values_from = observation_count_mean_log10, names_prefix = "month_") %>% 
+  clean_names()
+
+  glimpse(df_observaciones_aves)
+  
+ 
+library(purrr)
+library(tibble)
+library(tidyr)
+library(broom)
+  kclusts <- tibble(k = 1:9) %>%
+  mutate(
+    kclust = map(k, ~kmeans(df_observaciones_aves %>% select(-common_name), .x)),
+    tidied = map(kclust, tidy),
+    glanced = map(kclust, glance),
+    augmented = map(kclust, augment, df_observaciones_aves %>% select(-common_name))
+  )
+
+kclusts
+
+ clusters <- kclusts %>%
+  unnest(tidied)
+
+ assignments <- kclusts %>% 
+  unnest(augmented)
+
+ clusterings <- kclusts %>%
+  unnest(glanced)
+  
 ```
 
 
@@ -160,68 +232,95 @@ ggplot()+geom_histogram(data=MyEBirdData,
 
 Graficas
 =======================================================================
-
-
+Column {data-width=400}
+------------------------------------------------------------------------------
+### Observaciones
 ```{r}
      
 df %>% 
   count(observation_date) %>% 
-  ggplot(aes(x = observation_date)) +
-  geom_line(aes(y = n), colour = "maroon", group = 1) +
-  #ggplot(aes(x=Date, y=n, group = 1, xlim=c(2019)))  +
-   # geom_line() +
+  ggplot(aes(x = observation_date, y=n, group = 1)) +
+  geom_line( colour = "mediumvioletred", size=1, alpha=0.9, linetype=1) +
+   geom_point(color="mediumvioletred", size=2) +
+  ggtitle("Observaciones por fecha") +
     labs(x = "Fecha Observacion",
-         y = "Cantidad")+
+         y = "Observacoines")+
    theme_light()
 
 
                          
 ```
 
-Graficas
+### Observaciones por mes
+```{r}
+
+# log10 para Para hacer que los datos con asimetría positiva sean más "normales"
+  df_observaciones %>% 
+  ggplot(aes(observacion_mes, observation_count_mean_log10)) +
+  geom_jitter(color="mediumorchid", size=0.7, alpha=0.5) +
+    geom_boxplot(fill = "palegreen", colour = "mediumseagreen") +
+    labs(x = "Observaciones por mes",
+         y = "Promedio de aves observadas (log10)")+
+  theme_light()
+
+```
+
+### Observaciones por mes
+```{r}
+
+# log10 para Para hacer que los datos con asimetría positiva sean más "normales"
+  df_observaciones %>% 
+  ggplot(aes(observacion_mes, observation_count_mean_log10)) +
+     geom_point(color="purple", alpha=0.8) +
+    labs(x = "Observaciones por mes",
+         y = "Promedio de aves observadas (log10)")
+
+```
+
+      
+Tendencias observacion
 =======================================================================
 
-Row {data-height=600}
+Column {data-height=600}
 -----------------------------------------------------------------------
 
-### a
+###  Tendencias observacion aves por especie.
 
 ```{r}
-
+df_observaciones %>%
+  mutate(common_name = factor(Common.Name, levels = veccommonname)) %>%
+  ggplot(aes(observacion_mes, Common.Name, fill = observation_count_mean_log10)) +
+    geom_tile() +
+  scale_fill_viridis_c("Promedio Observación (log10)") +
+    #scale_fill_viridis_c(option = "plasma","Promedio Observación (log10)") +
+  #scale_fill_viridis_b("Promedio Observación (log10)")+
+    scale_x_discrete(expand = c(0,0)) +
+    scale_y_discrete(expand = c(0,0)) +
+    labs(x = "Observacion por mes",
+         y = "Especies") +
+    theme(panel.grid = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank())   
 
 ```
 
-
-### EDA con dataset proyecto - box plot- ggplot2 - dplyr
------------------------------------------------------------------------
-```{r}
-
-Promedioaves <- mean(MyEBirdData$Count)
-#Promedioaves
-MyEBirdData<- MyEBirdData %>%
-  mutate(Grande_Candidad_Aves = ifelse(Count < Promedioaves,
-                                 "Por debajo del promedio aves observadas",
-                                 "Sobre-Arriba del promedio aves observadas"))
-
-
-
-ggplot(MyEBirdData, aes(x=Grande_Candidad_Aves , y=Duration..Min.,
-                     fill=Grande_Candidad_Aves ))+
-geom_boxplot(alpha=0.4)+
-  labs(x="Grande_Candidad_Aves", y="Duration..Min.",
-       title="Cantidad de aves Observadas en un Tiempo")+
-  theme(legend.position = "none")+
-  theme(panel.background = element_blank(),panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())
-
-```
-
-.
+k-means-(Grupos )
 =======================================================================
-Row {data-height=600}
-------------------------------------------------------------------------------
-### A
+
+Column {data-height=600}
+-----------------------------------------------------------------------
+```{r}
+ggplot(clusterings, aes(k, tot.withinss)) +
+  geom_line() +
+  geom_vline(xintercept = 2, linetype = 2) +
+  geom_vline(xintercept = 4, linetype = 2) +
+  scale_x_continuous(breaks = seq(1:9)) +
+  labs(x = "Number of clusters")
+```
+
 ```{r}
 
+
 ```
+
 
