@@ -1,60 +1,58 @@
-<<<<<<< HEAD
+
 # flexdashboard-example
 Flexdashboard usa R Markdown 
 
 Flexdashboard se muestra usando Github Pages.
 
-Iniciar
+**Iniciar**
 Install Homebrew
 
-ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-Install R and Pandoc
+* ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 
-brew tap brewsci/science
-brew install r
-brew install pandoc
+**Install R and Pandoc**
 
-
- instalar the flexdashboard package
-
-r stdio:
-install.packages("flexdashboard")
-Create a new flexcashboard R Markdown file from the R console
-
-rmarkdown::draft("index.Rmd", template = "flex_dashboard", package = "flexdashboard")
-
-Crear un archivo  _site.yml
-
-name: "my-website"
-output_dir: docs
+* brew tap brewsci/science
+* brew install r
+* brew install pandoc
 
 
-Renderizar el sitio
+ **instalar the flexdashboard package**
 
-rmarkdown::render_site()
+**r stdio:**
+* install.packages("flexdashboard")
+* Create a new flexcashboard R Markdown file from the R console
+
+* rmarkdown::draft("index.Rmd", template = "flex_dashboard", package = "flexdashboard")
+
+* Crear un archivo  _site.yml
+
+* name: "my-website"
+* output_dir: docs
+
+
+**Renderizar el sitio**
+
+* rmarkdown::render_site()
 
 
 
-agréguelo a.gitignore
+**agréguelo a.gitignore**
 
 echo docs/README.html >> .gitignore
 
 
-Después de crear un nuevo repositorio de github (use https://github.com/new ), confirme y envíe el sitio.
+* Después de crear un nuevo repositorio de github (use https://github.com/new ), confirme y envíe el sitio.
 
-git add -A
-git commit -m "create flexdashboard site"
-git remote add origin https://github.com/pbatey/flexdashboard-example.git
-git push -u origin master
+* git add -A
+* git commit -m "create flexdashboard site"
+* git remote add origin https://github.com/pbatey/flexdashboard-example.git
+* git push -u origin master
 
 
-Luego habilite las páginas de GitHub en:
+**Luego habilite las páginas de GitHub en:**
 Source to master branch /docs folder in the GitHub Pages section of the repository settings.
 
 
 INGRESE A :
-https://sandrarairan.github.io/flexdashboard-example/
-=======
-# Bird
-Birding Colombia
->>>>>>> bca592a3fdcb16c2bac6c350a58ca0c79438e514
+https://sandrarairan.github.io/fbird/
+
