@@ -96,19 +96,17 @@ df_observaciones <- df %>%
   #Tendencias onservacion aves por especie
 
   veccommonname <- df_observaciones %>% 
-  pivot_wider(names_from = observacion_mes, values_from = observation_count_mean_log10, names_prefix = "month_") %>% 
+  pivot_wider(names_from = observacion_mes, values_from = observation_count_mean_log10, names_prefix = "mes_") %>% 
   clean_names() %>% 
-  arrange(month_jan, month_feb, month_mar, month_apr, month_may, month_jun, month_jul, month_aug, month_sep, month_oct, month_nov,   month_dec) %>% 
+  arrange(mes_jan, mes_feb, mes_mar, mes_apr, mes_may, mes_jun, mes_jul, mes_aug, mes_sep, mes_oct, mes_nov,mes_dec) %>% 
   pull(1)
   
   
   # k-means-(Grupos )
-   # k-means-(Grupos )
-  
-  
+
   df_observaciones_aves <- df_observaciones %>% 
   select(Common.Name, observacion_mes, observation_count_mean_log10) %>% 
-  pivot_wider(names_from = observacion_mes, values_from = observation_count_mean_log10, names_prefix = "month_") %>% 
+  pivot_wider(names_from = observacion_mes, values_from = observation_count_mean_log10, names_prefix = "mes_") %>% 
   clean_names()
 
   glimpse(df_observaciones_aves)
@@ -137,6 +135,10 @@ kclusts
  clusterings <- kclusts %>%
   unnest(glanced)
   
+ 
+ 
+ 
+ 
 ```
 
 
@@ -234,7 +236,7 @@ Graficas
 =======================================================================
 Column {data-width=400}
 ------------------------------------------------------------------------------
-### Observaciones
+### Observaciones por fecha
 ```{r}
      
 df %>% 
@@ -307,8 +309,10 @@ df_observaciones %>%
 k-means-(Grupos )
 =======================================================================
 
-Column {data-height=600}
+Column {data-height=400}
 -----------------------------------------------------------------------
+
+### Grupos óptimos
 ```{r}
 ggplot(clusterings, aes(k, tot.withinss)) +
   geom_line() +
@@ -318,9 +322,86 @@ ggplot(clusterings, aes(k, tot.withinss)) +
   labs(x = "Number of clusters")
 ```
 
+### El mes Enero se compara con los demás meses
+
 ```{r}
 
+#comparacion mes
+ assignments %>% 
+  select(k, .cluster, contains("mes_")) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_longer(cols = contains("mes_"), names_to = "observacion_mes", values_to = "observation_count_mean_log10") %>% 
+  mutate(mes_jan = case_when(observacion_mes == "mes_jan" ~ observation_count_mean_log10,
+                               TRUE ~ as.numeric(NA))) %>% 
+  group_by(k, .cluster, id) %>% 
+  fill(mes_jan, .direction = c("down")) %>% 
+  ungroup() %>% 
+  filter(observacion_mes != "mes_jan",
+         k <= 4) %>% 
+  mutate(k = str_c(k, "cluster(s)", sep = " ")) %>% 
+  ggplot(aes(observation_count_mean_log10, mes_jan, color = .cluster)) +
+    geom_point() +
+    facet_grid(k ~ observacion_mes) +
+    theme(strip.text.x = element_text(size=8, angle=75),
+          strip.text.y = element_text(size=7, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF"))+
+    labs(x = "observacion Mes",
+         y = "Enero")
+```
+
+### Agrupa los datos usando 4 grupos
+```{r}
+
+#Agrupa los datos usando 4 grupos
+
+df_kmeans <- df_observaciones_aves %>% 
+  select(-common_name) %>% 
+  kmeans(centers = 4)
+df_clustered <- augment(df_kmeans, df_observaciones_aves) %>% 
+  select(common_name, .cluster)
+
+df_clustered
 
 ```
 
+Grupos-cluster
+=======================================================================
 
+Column {data-weight=400}
+-----------------------------------------------------------------------
+
+### Observacones por Grupo
+
+```{r}
+
+ vec_common_name_cluster <-
+  full_join(df_clustered,df_observaciones, by = c("common_name"= "Common.Name")) %>% 
+  pivot_wider(names_from = observacion_mes, values_from = observation_count_mean_log10, names_prefix = "mes_") %>% 
+  clean_names() %>% 
+  arrange(cluster, mes_jan, mes_feb, mes_mar, mes_apr, mes_may, mes_jun, mes_jul, mes_aug, mes_sep, mes_oct, mes_nov, mes_dec) %>% 
+  pull(common_name)
+
+
+
+names(vec_common_name_cluster) <- c("common_name")
+
+df_observaciones_clustered <- 
+  full_join(df_clustered,df_observaciones, by = c("common_name"= "Common.Name")) %>%
+  mutate(common_name = factor(common_name, levels = vec_common_name_cluster))
+
+
+df_observaciones_clustered %>% 
+  mutate(.cluster = str_c("Cluster", .cluster, sep = " ")) %>% 
+  ggplot(aes(observacion_mes, common_name, fill = observation_count_mean_log10)) +
+    geom_tile() +
+    facet_wrap(~.cluster, scales = "free_y") +
+    scale_fill_viridis_c("Mean observation count (log10)") +
+    scale_x_discrete(expand = c(0,0)) +
+    scale_y_discrete(expand = c(0,0)) +
+    labs(x = "Observacion mes",
+         y = "Especies") +
+    theme(panel.grid = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank())
+
+````
