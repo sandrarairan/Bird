@@ -62,7 +62,7 @@ df <- df %>%
   semi_join(df_top_protocols) 
 
 df %>% 
-  select(Common.Name, Date, Count) %>% 
+  select(Scientific.Name, Date, Count) %>% 
   glimpse()
 
 #Grafica
@@ -75,14 +75,14 @@ meses <- df %>%
 df_observaciones <- df %>% 
   mutate(observacion_mes = month(observation_date, label = TRUE),
          observacion_año = year(observation_date)) %>% 
-  group_by(Common.Name, observacion_año, observacion_mes) %>% 
+  group_by(Scientific.Name, observacion_año, observacion_mes) %>% 
   summarize(observation_count = sum(Count, na.rm = TRUE)) %>% 
-  group_by(Common.Name, observacion_mes) %>% 
+  group_by(Scientific.Name, observacion_mes) %>% 
   summarize(observation_count_mean = mean(observation_count) %>% round(1)) %>% 
   ungroup() %>% 
-  complete(Common.Name, observacion_mes = meses) %>% 
+  complete(Scientific.Name, observacion_mes = meses) %>% 
   replace_na(list(observation_count_mean = 0)) %>% 
-  arrange(Common.Name, observacion_mes)
+  arrange(Scientific.Name, observacion_mes)
   glimpse(df_observaciones)
   
   
@@ -105,7 +105,7 @@ df_observaciones <- df %>%
   # k-means-(Grupos )
 
   df_observaciones_aves <- df_observaciones %>% 
-  select(Common.Name, observacion_mes, observation_count_mean_log10) %>% 
+  select(Scientific.Name, observacion_mes, observation_count_mean_log10) %>% 
   pivot_wider(names_from = observacion_mes, values_from = observation_count_mean_log10, names_prefix = "mes_") %>% 
   clean_names()
 
@@ -118,10 +118,10 @@ library(tidyr)
 library(broom)
   kclusts <- tibble(k = 1:9) %>%
   mutate(
-    kclust = map(k, ~kmeans(df_observaciones_aves %>% select(-common_name), .x)),
+    kclust = map(k, ~kmeans(df_observaciones_aves %>% select(-scientific_name), .x)),
     tidied = map(kclust, tidy),
     glanced = map(kclust, glance),
-    augmented = map(kclust, augment, df_observaciones_aves %>% select(-common_name))
+    augmented = map(kclust, augment, df_observaciones_aves %>% select(-scientific_name))
   )
 
 kclusts
@@ -290,8 +290,8 @@ Column {data-height=600}
 
 ```{r}
 df_observaciones %>%
-  mutate(common_name = factor(Common.Name, levels = veccommonname)) %>%
-  ggplot(aes(observacion_mes, Common.Name, fill = observation_count_mean_log10)) +
+  mutate(scientific_name = factor(Scientific.Name, levels = veccommonname)) %>%
+  ggplot(aes(observacion_mes, Scientific.Name, fill = observation_count_mean_log10)) +
     geom_tile() +
   scale_fill_viridis_c("Promedio Observación (log10)") +
     #scale_fill_viridis_c(option = "plasma","Promedio Observación (log10)") +
@@ -322,6 +322,25 @@ ggplot(clusterings, aes(k, tot.withinss)) +
   labs(x = "Number of clusters")
 ```
 
+### Agrupa los datos usando 4 grupos
+```{r}
+
+#Agrupa los datos usando 4 grupos
+
+df_kmeans <- df_observaciones_aves %>% 
+  select(-scientific_name) %>% 
+  kmeans(centers = 4)
+df_clustered <- augment(df_kmeans, df_observaciones_aves) %>% 
+  select(scientific_name, .cluster)
+
+df_clustered
+
+```
+
+Column {data-height=400}
+-----------------------------------------------------------------------
+
+
 ### El mes Enero se compara con los demás meses
 
 ```{r}
@@ -349,20 +368,6 @@ ggplot(clusterings, aes(k, tot.withinss)) +
          y = "Enero")
 ```
 
-### Agrupa los datos usando 4 grupos
-```{r}
-
-#Agrupa los datos usando 4 grupos
-
-df_kmeans <- df_observaciones_aves %>% 
-  select(-common_name) %>% 
-  kmeans(centers = 4)
-df_clustered <- augment(df_kmeans, df_observaciones_aves) %>% 
-  select(common_name, .cluster)
-
-df_clustered
-
-```
 
 Grupos-cluster
 =======================================================================
@@ -375,27 +380,27 @@ Column {data-weight=400}
 ```{r}
 
  vec_common_name_cluster <-
-  full_join(df_clustered,df_observaciones, by = c("common_name"= "Common.Name")) %>% 
+  full_join(df_clustered,df_observaciones, by = c("scientific_name"= "Scientific.Name")) %>% 
   pivot_wider(names_from = observacion_mes, values_from = observation_count_mean_log10, names_prefix = "mes_") %>% 
   clean_names() %>% 
   arrange(cluster, mes_jan, mes_feb, mes_mar, mes_apr, mes_may, mes_jun, mes_jul, mes_aug, mes_sep, mes_oct, mes_nov, mes_dec) %>% 
-  pull(common_name)
+  pull(scientific_name)
 
 
 
-names(vec_common_name_cluster) <- c("common_name")
+names(vec_common_name_cluster) <- c("scientific_name")
 
 df_observaciones_clustered <- 
-  full_join(df_clustered,df_observaciones, by = c("common_name"= "Common.Name")) %>%
-  mutate(common_name = factor(common_name, levels = vec_common_name_cluster))
+  full_join(df_clustered,df_observaciones, by = c("scientific_name"= "Scientific.Name")) %>%
+  mutate(scientific_name = factor(scientific_name, levels = vec_common_name_cluster))
 
 
 df_observaciones_clustered %>% 
   mutate(.cluster = str_c("Cluster", .cluster, sep = " ")) %>% 
-  ggplot(aes(observacion_mes, common_name, fill = observation_count_mean_log10)) +
+  ggplot(aes(observacion_mes, scientific_name, fill = observation_count_mean_log10)) +
     geom_tile() +
-    facet_wrap(~.cluster, scales = "free_y") +
-    scale_fill_viridis_c("Mean observation count (log10)") +
+    facet_wrap(~.cluster, scales = "free_y", ncol = 1) +
+    scale_fill_viridis_c("Promedio  observacion (log10)") +
     scale_x_discrete(expand = c(0,0)) +
     scale_y_discrete(expand = c(0,0)) +
     labs(x = "Observacion mes",
@@ -404,4 +409,28 @@ df_observaciones_clustered %>%
           axis.text.y = element_blank(),
           axis.ticks.y = element_blank())
 
-````
+```
+
+### Observacones por Grupo 
+
+``` {r}
+
+df_cluster_sample <- df_clustered %>% 
+  group_by(.cluster) %>% 
+  sample_n(10, replace = FALSE) %>% 
+  ungroup()
+
+df_observaciones_clustered %>%
+  semi_join(df_cluster_sample) %>% 
+  mutate(.cluster = str_c("Cluster", .cluster, sep = " ")) %>% 
+  ggplot(aes(observacion_mes, scientific_name, fill = observation_count_mean_log10)) +
+    geom_tile() +
+    facet_wrap(~.cluster, scales = "free_y", ncol = 1 ) +
+    scale_fill_viridis_c("Promedio  observacion (log10)") +
+    scale_x_discrete(expand = c(0,0)) +
+    scale_y_discrete(expand = c(0,0)) +
+    labs(x = "Observation month",
+         y = NULL) +
+    theme(panel.grid = element_blank())
+
+```
