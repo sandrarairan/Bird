@@ -137,7 +137,15 @@ kclusts
  clusterings <- kclusts %>%
   unnest(glanced)
 
-   
+ #Agrupa los datos usando 4 grupos
+
+df_kmeans <- df_observaciones_aves %>% 
+  select(-scientific_name) %>% 
+  kmeans(centers = 4)
+df_clustered <- augment(df_kmeans, df_observaciones_aves) %>% 
+  select(scientific_name, .cluster)
+
+df_clustered  
  
  
 #POR TIME
@@ -186,6 +194,7 @@ df_t <- df_t %>%
 df_t %>% 
   select(Scientific.Name, horario_inicio, Count) %>% 
   glimpse()
+
 
 # transformamos la hora de inicio  en vector 
 horario_observacion <- df_t %>% 
@@ -497,7 +506,11 @@ df_observaciones %>%
          y = "Especies") +
     theme(panel.grid = element_blank(),
           axis.text.y = element_blank(),
-          axis.ticks.y = element_blank())   
+          axis.ticks.y = element_blank(),
+          legend.direction = "horizontal",
+      legend.position="bottom",
+      legend.justification = "right"
+          )    
 
 ```
 
@@ -602,7 +615,10 @@ df_observaciones_clustered %>%
          y = "Especies") +
     theme(panel.grid = element_blank(),
           axis.text.y = element_blank(),
-          axis.ticks.y = element_blank())
+          axis.ticks.y = element_blank(),
+          legend.direction = "horizontal",
+      legend.position="bottom",
+      legend.justification = "right")
 
 ```
 
@@ -626,7 +642,12 @@ df_observaciones_clustered %>%
     scale_y_discrete(expand = c(0,0)) +
     labs(x = "Observation month",
          y = NULL) +
-    theme(panel.grid = element_blank())
+    theme(panel.grid = element_blank(),
+          axis.text.y = element_text(size=5),
+          axis.ticks.y = element_blank(),
+      legend.direction = "horizontal",
+      legend.position="top",
+      legend.justification = "right")
 
 ```
 
@@ -695,7 +716,11 @@ Column {data-height=600}
          y = "Especies") +
     theme(panel.grid = element_blank(),
           axis.text.y = element_blank(),
-          axis.ticks.y = element_blank()) 
+          axis.ticks.y = element_blank(),
+          legend.direction = "horizontal",
+      legend.position="bottom",
+      legend.justification = "right"
+          ) 
 
 ```
 
@@ -802,7 +827,10 @@ df_observaciones_clustered_t %>%
          y = "Especies") +
     theme(panel.grid = element_blank(),
           axis.text.y = element_blank(),
-          axis.ticks.y = element_blank())
+          axis.ticks.y = element_blank(),
+          legend.direction = "horizontal",
+      legend.position="bottom",
+      legend.justification = "right")
   
 ```
   
@@ -826,6 +854,12 @@ df_observaciones_clustered_t %>%
     scale_y_discrete(expand = c(0,0)) +
     labs(x = "Observacion horas",
          y = NULL) +
-    theme(panel.grid = element_blank())
+    theme(panel.grid = element_blank(),
+          axis.text.y = element_text(size=5),
+          axis.ticks.y = element_blank(),
+      legend.direction = "horizontal",
+      legend.position="top",
+      legend.justification = "right"
+          )
 ```
 
