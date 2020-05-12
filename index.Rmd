@@ -15,6 +15,7 @@ library(dplyr)
 library(tidyr)
 library(RColorBrewer)
 library(tidyverse)
+library(tidymodels)
 library(lubridate)
 library(janitor)
 library(vroom)
@@ -53,6 +54,7 @@ mutate_at(vars(Submission.ID, Location, Date, Time, Protocol), str_replace_na, "
   mutate(observation_event_id = str_c(Submission.ID, Location, Date, Time, sep = "-"),
          observation_date = ymd(Date)) 
 
+# por Date
 #Cantidad por protocolo estacionario o con desplaazamiento
 df_top_protocols <- df %>% 
   count(Protocol, sort = TRUE) %>% 
@@ -60,7 +62,7 @@ df_top_protocols <- df %>%
 
 df <- df %>% 
   semi_join(df_top_protocols) 
-
+# fecha
 df %>% 
   select(Scientific.Name, Date, Count) %>% 
   glimpse()
@@ -134,12 +136,205 @@ kclusts
 
  clusterings <- kclusts %>%
   unnest(glanced)
+
+   
+ 
+ 
+#POR TIME
+ df_t <- MyEBirdData %>% 
+mutate_at(vars(Submission.ID, Location, Date, Time, Protocol), str_replace_na, "NA") %>% 
+  mutate(observation_event_id = str_c(Submission.ID, Location, Date, Time, sep = "-"),
+          observacion_fecha = ymd(Date))
+ 
+#Cantidad por protocolo estacionario o con desplaazamiento
+df_top_protocols_t <- df_t %>% 
+  count(Protocol, sort = TRUE) %>% 
+  slice(1:2)
+
+df_t <- df_t %>% 
+  semi_join(df_top_protocols) 
+# fecha
+df_t %>% 
+  select(Scientific.Name, Time, Count) %>% 
+  glimpse()
+
+
+# separar la hora de la cadena 08:00 am
+df_t <- df_t %>%
+  mutate(hora = str_sub(Time, 1, 2))
+
+# separar la minutos de la cadena 08:00 am
+df_t <- df_t %>%
+  mutate(minutos = str_sub(Time, 4, 5))
+
+# separar la am/pm de la cadena 08:00 am
+df_t <- df_t %>%
+  mutate(meridiem = str_sub(Time, 7, 7))
+
+df_t <- df_t %>%
+mutate(horario_inicio = str_c(hora, meridiem, sep = "-"))
+
+#Grafica
+
+
+
+
+
+df_t <- df_t %>% 
+  semi_join(df_top_protocols) 
+# horario_inicio
+df_t %>% 
+  select(Scientific.Name, horario_inicio, Count) %>% 
+  glimpse()
+
+# transformamos la hora de inicio  en vector 
+horario_observacion <- df_t %>% 
+  distinct(horario_inicio) %>% 
+  pull(horario_inicio)
+
+#View(horario_observacion)
+
+# Observaciones por mes de espcies
+df_obser_horario <- df_t %>% 
+  group_by(Scientific.Name, horario_inicio) %>% 
+  summarize(observation_count = sum(Count, na.rm = TRUE)) %>% 
+  group_by(Scientific.Name, horario_inicio) %>% 
+  summarize(observation_count_mean = mean(observation_count) %>% round(1)) %>% 
+  ungroup() %>% 
+  complete(Scientific.Name, horario_inicio = horario_observacion) %>% 
+  replace_na(list(observation_count_mean = 0)) %>% 
+  arrange(Scientific.Name, horario_inicio)
+  glimpse(df_obser_horario)
+  
+  df_obser_horario <- df_obser_horario %>% 
+  mutate(observation_count_mean_log10 = log10(observation_count_mean),
+         observation_count_mean_log10 = case_when(is.infinite(observation_count_mean_log10) ~ 0,
+                                                  TRUE ~ observation_count_mean_log10)) %>% 
+  select(-observation_count_mean)
+  
+# log10 para Para hacer que los datos con asimetría positiva sean más "normales"
+  df_obser_horario %>% 
+  ggplot(aes(horario_inicio, observation_count_mean_log10)) +
+  geom_jitter(color="mediumorchid", size=0.7, alpha=0.5) +
+    geom_boxplot(fill = "palegreen", colour = "mediumseagreen") +
+    labs(x = "Observaciones por horario",
+         y = "Promedio de aves observadas (log10)")+
+  theme_light()
+  
+  
+  
+  # log10 para Para hacer que los datos con asimetría positiva sean más "normales"
+  df_obser_horario %>% 
+  ggplot(aes(horario_inicio, observation_count_mean_log10)) +
+     geom_point(color="purple", alpha=0.8) +
+    labs(x = "Observaciones por horario",
+         y = "Promedio de aves observadas (log10)")
+  
+  
+ #Tendencias onservacion aves por especie -horas
+
+  vecscientificnametime <- df_obser_horario %>% 
+  pivot_wider(names_from = horario_inicio, values_from = observation_count_mean_log10, names_prefix = "h_") %>% 
+  clean_names() %>% 
+  #arrange(h_01-pm, h_02-pm,h_03-pm,h_04-pm,h_05-am,h_05-pm,h_06-am, h_06-pm, h_07-am, h_08-am, h_09-am, h_09-pm,h_10-am, h_10-pm,h_11-am, h_12-pm) #%>% 
+  pull(1)
+  
+  
+  df_obser_horario %>%
+  mutate(scientific_name = factor(Scientific.Name, levels = vecscientificnametime)) %>%
+  ggplot(aes(horario_inicio, Scientific.Name, fill = observation_count_mean_log10)) +
+    geom_tile() +
+  scale_fill_viridis_c("Promedio Observación (log10)") +
+    #scale_fill_viridis_c(option = "plasma","Promedio Observación (log10)") +
+  #scale_fill_viridis_b("Promedio Observación (log10)")+
+    scale_x_discrete(expand = c(0,0)) +
+    scale_y_discrete(expand = c(0,0)) +
+    labs(x = "Observacion por horario",
+         y = "Especies") +
+    theme(panel.grid = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank()) 
+  
+  
+# k-means-(Grupos )
+
+  df_obser_horario_aves <- df_obser_horario %>% 
+  select(Scientific.Name, horario_inicio, observation_count_mean_log10) %>% 
+  pivot_wider(names_from = horario_inicio, values_from = observation_count_mean_log10, names_prefix = "h_") %>% 
+  clean_names()
+
+  glimpse(df_obser_horario_aves)
   
  
+library(purrr)
+library(tibble)
+library(tidyr)
+library(broom)
+  kclusts_t <- tibble(k = 1:9) %>%
+  mutate(
+    kclust = map(k, ~kmeans(df_obser_horario_aves %>% select(-scientific_name), .x)),
+    tidied = map(kclust, tidy),
+    glanced = map(kclust, glance),
+    augmented = map(kclust, augment, df_obser_horario_aves %>% select(-scientific_name))
+  )
+
+kclusts_t
+
+ clusters_t <- kclusts_t %>%
+  unnest(tidied)
+
+ assignments_t <- kclusts_t %>% 
+  unnest(augmented)
+
+ clusterings_t <- kclusts_t %>%
+  unnest(glanced)
+  
+  ggplot(clusterings_t, aes(k, tot.withinss)) +
+  geom_line() +
+  geom_vline(xintercept = 2, linetype = 2) +
+  geom_vline(xintercept = 4, linetype = 2) +
+  scale_x_continuous(breaks = seq(1:9)) +
+  labs(x = "Number of clusters")
+  
+  #Agrupa los datos usando 4 grupos
+
+df_kmeans_t <- df_obser_horario_aves %>% 
+  select(-scientific_name) %>% 
+  kmeans(centers = 4)
+df_clustered_t <- augment(df_kmeans_t, df_obser_horario_aves) %>% 
+  select(scientific_name, .cluster)
+
+df_clustered_t
+
+#comparacion 01 pm con las otras horas
+ assignments_t %>% 
+  select(k, .cluster, contains("h_")) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_longer(cols = contains("h_"), names_to = "horario_inicio", values_to = "observation_count_mean_log10") %>% 
+  mutate(h_01_pm = case_when(horario_inicio == "h_01_p" ~ observation_count_mean_log10,
+                               TRUE ~ as.numeric(NA))) %>% 
+  group_by(k, .cluster, id) %>% 
+  fill(h_01_pm, .direction = c("down")) %>% 
+  ungroup() %>% 
+  filter(horario_inicio != "h_1_p",
+         k <= 4) %>% 
+  mutate(k = str_c(k, "cluster(s)", sep = " ")) %>% 
+  ggplot(aes(observation_count_mean_log10, h_01_pm, color = .cluster)) +
+    geom_point() +
+    facet_grid(k ~ horario_inicio) +
+    theme(strip.text.x = element_text(size=8, angle=75),
+          strip.text.y = element_text(size=7, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF"))+
+    labs(x = "observacion Horario",
+         y = "hora 01 pm")
+
  
  
+ 
+ #
  
 ```
+
 
 
 Resumen
@@ -232,7 +427,7 @@ ggplot()+geom_histogram(data=MyEBirdData,
 
 ```
 
-Graficas
+Graficas(meses)
 =======================================================================
 Column {data-width=400}
 ------------------------------------------------------------------------------
@@ -280,7 +475,7 @@ df %>%
 ```
 
       
-Tendencias observacion
+Tendencias meses
 =======================================================================
 
 Column {data-height=600}
@@ -306,7 +501,7 @@ df_observaciones %>%
 
 ```
 
-k-means-(Grupos )
+k-means-(meses)
 =======================================================================
 
 Column {data-height=400}
@@ -434,3 +629,203 @@ df_observaciones_clustered %>%
     theme(panel.grid = element_blank())
 
 ```
+
+Graficas(horas)
+=======================================================================
+Column {data-width=400}
+------------------------------------------------------------------------------
+### Observaciones por hora
+```{r}
+df_t %>% 
+  count(horario_inicio) %>% 
+  ggplot(aes(x = horario_inicio, y=n, group = 1)) +
+    geom_line( colour = "mediumvioletred", size=1, alpha=0.9, linetype=1) +
+   geom_point(color="mediumvioletred", size=2) +
+  ggtitle("Observaciones por hora") +
+    labs(x = "Hora",
+         y = "Observation events") +
+  theme_light()
+                         
+```
+
+### Observaciones por hora
+```{r}
+df_obser_horario %>% 
+  ggplot(aes(horario_inicio, observation_count_mean_log10)) +
+  geom_jitter(color="mediumorchid", size=0.7, alpha=0.5) +
+    geom_boxplot(fill = "palegreen", colour = "mediumseagreen") +
+    labs(x = "Observaciones por horario",
+         y = "Promedio de aves observadas (log10)")+
+  theme_light()
+
+
+```
+
+### Observaciones por hora
+```{r}
+
+ # log10 para Para hacer que los datos con asimetría positiva sean más "normales"
+  df_obser_horario %>% 
+  ggplot(aes(horario_inicio, observation_count_mean_log10)) +
+     geom_point(color="purple", alpha=0.8) +
+    labs(x = "Observaciones por horario",
+         y = "Promedio de aves observadas (log10)")
+
+```
+
+Tendencias horas
+=======================================================================
+
+Column {data-height=600}
+-----------------------------------------------------------------------
+
+###  Tendencias observacion aves por especie.
+
+```{r}
+  df_obser_horario %>%
+  mutate(scientific_name = factor(Scientific.Name, levels = vecscientificnametime)) %>%
+  ggplot(aes(horario_inicio, Scientific.Name, fill = observation_count_mean_log10)) +
+    geom_tile() +
+  scale_fill_viridis_c("Promedio Observación (log10)") +
+    #scale_fill_viridis_c(option = "plasma","Promedio Observación (log10)") +
+  #scale_fill_viridis_b("Promedio Observación (log10)")+
+    scale_x_discrete(expand = c(0,0)) +
+    scale_y_discrete(expand = c(0,0)) +
+    labs(x = "Observacion por horario",
+         y = "Especies") +
+    theme(panel.grid = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank()) 
+
+```
+
+k-means-(horas)
+=======================================================================
+
+Column {data-height=400}
+-----------------------------------------------------------------------
+
+### Grupos óptimos
+```{r}
+ggplot(clusterings_t, aes(k, tot.withinss)) +
+  geom_line() +
+  geom_vline(xintercept = 2, linetype = 2) +
+  geom_vline(xintercept = 4, linetype = 2) +
+  scale_x_continuous(breaks = seq(1:9)) +
+  labs(x = "Number of clusters")
+```
+
+### Agrupa los datos usando 4 grupos
+
+``` {r}
+
+#Agrupa los datos usando 4 grupos
+
+df_kmeans_t <- df_obser_horario_aves %>% 
+  select(-scientific_name) %>% 
+  kmeans(centers = 4)
+df_clustered_t <- augment(df_kmeans_t, df_obser_horario_aves) %>% 
+  select(scientific_name, .cluster)
+df_clustered_t
+```
+
+
+Column {data-height=400}
+-----------------------------------------------------------------------
+
+### La hora 01pm se compara con los demás horas
+
+```{r}
+
+#comparacion hora
+ assignments_t %>% 
+  select(k, .cluster, contains("h_")) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_longer(cols = contains("h_"), names_to = "horario_inicio", values_to = "observation_count_mean_log10") %>% 
+  mutate(h_01_pm = case_when(horario_inicio == "h_01_p" ~ observation_count_mean_log10,
+                               TRUE ~ as.numeric(NA))) %>% 
+  group_by(k, .cluster, id) %>% 
+  fill(h_01_pm, .direction = c("down")) %>% 
+  ungroup() %>% 
+  filter(horario_inicio != "h_1_p",
+         k <= 4) %>% 
+  mutate(k = str_c(k, "cluster(s)", sep = " ")) %>% 
+  ggplot(aes(observation_count_mean_log10, h_01_pm, color = .cluster)) +
+    geom_point() +
+    facet_grid(k ~ horario_inicio) +
+    theme(strip.text.x = element_text(size=8, angle=75),
+          strip.text.y = element_text(size=7, face="bold"),
+          strip.background = element_rect(colour="red", fill="#CCCCFF"))+
+    labs(x = "observacion Horario",
+         y = "hora 01 pm")
+
+  
+
+```
+
+
+Grupos-hora
+=======================================================================
+
+Column {data-weight=400}
+-----------------------------------------------------------------------
+
+### Observacones por Grupo
+
+``` {r}
+
+vec_common_name_cluster_t <-
+  full_join(df_clustered_t,df_obser_horario, by = c("scientific_name"= "Scientific.Name")) %>% 
+  pivot_wider(names_from = horario_inicio, values_from = observation_count_mean_log10, names_prefix = "h_") %>% 
+  clean_names() %>% 
+  arrange(cluster, h_01_p, h_02_p,h_03_p,h_04_p,h_05_a,h_05_p,h_06_a, h_06_p, h_07_a, h_08_a, h_09_a, h_09_p,h_10_a, h_10_p,h_11_a, h_12_p) %>% 
+  pull(scientific_name)
+
+
+
+names(vec_common_name_cluster_t) <- c("scientific_name")
+
+df_observaciones_clustered_t <- 
+  full_join(df_clustered_t,df_obser_horario, by = c("scientific_name"= "Scientific.Name")) %>%
+  mutate(scientific_name = factor(scientific_name, levels = vec_common_name_cluster_t))
+
+
+df_observaciones_clustered_t %>% 
+  mutate(.cluster = str_c("Cluster", .cluster, sep = " ")) %>% 
+  ggplot(aes(horario_inicio, scientific_name, fill = observation_count_mean_log10)) +
+    geom_tile() +
+    facet_wrap(~.cluster, scales = "free_y", ncol = 1) +
+    scale_fill_viridis_c("Promedio  observacion (log10)") +
+    scale_x_discrete(expand = c(0,0)) +
+    scale_y_discrete(expand = c(0,0)) +
+    labs(x = "Observacion hora",
+         y = "Especies") +
+    theme(panel.grid = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank())
+  
+```
+  
+### Observacones por Grupo 
+
+``` {r}
+
+df_cluster_sample_t <- df_clustered_t %>% 
+  group_by(.cluster) %>% 
+  sample_n(10, replace = FALSE) %>% 
+  ungroup()
+
+df_observaciones_clustered_t %>%
+  semi_join(df_cluster_sample_t) %>% 
+  mutate(.cluster = str_c("Cluster", .cluster, sep = " ")) %>% 
+  ggplot(aes(horario_inicio, scientific_name, fill = observation_count_mean_log10)) +
+    geom_tile() +
+    facet_wrap(~.cluster, scales = "free_y", ncol = 1 ) +
+    scale_fill_viridis_c("Promedio  observacion (log10)") +
+    scale_x_discrete(expand = c(0,0)) +
+    scale_y_discrete(expand = c(0,0)) +
+    labs(x = "Observacion horas",
+         y = NULL) +
+    theme(panel.grid = element_blank())
+```
+
