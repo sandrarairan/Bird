@@ -484,7 +484,7 @@ df %>%
 ```
 
       
-Tendencias(mes)
+Tendencias(m)
 =======================================================================
 
 Column {data-height=600}
@@ -514,7 +514,7 @@ df_observaciones %>%
 
 ```
 
-k-means-(meses)
+k-means-(m)
 =======================================================================
 
 Column {data-height=400}
@@ -694,7 +694,7 @@ df_obser_horario %>%
 
 ```
 
-Tendencias horas
+Tendencias-(h)
 =======================================================================
 
 Column {data-height=600}
@@ -789,7 +789,7 @@ Column {data-height=400}
 ```
 
 
-Grupos-hora
+Grupos-h
 =======================================================================
 
 Column {data-weight=400}
