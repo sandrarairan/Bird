@@ -104,7 +104,7 @@ df_observaciones <- df %>%
   pull(1)
   
   
-  # k-means-(Grupos )
+  # k-means-(Grupos)
 
   df_observaciones_aves <- df_observaciones %>% 
   select(Scientific.Name, observacion_mes, observation_count_mean_log10) %>% 
@@ -484,7 +484,7 @@ df %>%
 ```
 
       
-Tendencias meses
+Tendencias(mes)
 =======================================================================
 
 Column {data-height=600}
@@ -724,7 +724,7 @@ Column {data-height=600}
 
 ```
 
-k-means-(horas)
+k-means-(h)
 =======================================================================
 
 Column {data-height=400}
