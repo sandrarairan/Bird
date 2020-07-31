@@ -56,3 +56,6 @@ Source to master branch /docs folder in the GitHub Pages section of the reposito
 INGRESE A :
 https://sandrarairan.github.io/fbird/
 
+# referencias
+
+https://ctompkins.netlify.app/2020/05/03/clustering-bird-species-with-seasonality/
